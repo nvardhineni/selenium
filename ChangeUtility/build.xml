@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE project [
+]>
+
+<project name="ChangeUtility" default="usage" basedir=".">  
+
+    <property environment="appenv"/>    
+    <property name="project.home" value="${basedir}"/>
+	<!-- Set JarFiles Folder's Path. -->
+	<property name="project.jars" value="${project.home}/JarFiles"/>
+    <property name="report.dest" value="${project.home}/build"/>
+    <property name="report.src" value="${project.home}/src"/>
+	<property name="report.result" value="test-output"/>
+	<property name="pdfreport" value="QSSITestReports.pdf"/>
+	
+	
+    <target name="setPath" unless="suite.classpath">
+        <path id="jar_path">
+            <fileset dir="${project.jars}" includes="*.jar"/>
+        </path>
+        <pathconvert pathsep=":" 
+            property="suite.classpath" 
+            refid="jar_path"/>
+    </target>
+
+    <target name="initialization" depends="setPath">
+        <tstamp>
+            <format property="Init.time" pattern="MM/dd/yyyy hh:mm aa" />
+        </tstamp>
+        <condition property="ANT" 
+            value="${appenv.ANT_HOME}/bin/ant.bat" 
+            else="${appenv.ANT_HOME}/bin/ant">
+                    <os family="windows" />
+        </condition>
+        <taskdef name="testng" classpath="${suite.classpath}"
+               classname="org.testng.TestNGAntTask" />    
+    </target>    
+
+    <!-- To clear -->
+    <target name="clear">
+        <delete dir="${report.dest}"/>
+    </target>
+
+    <!-- To compile -->
+	    <target name="compile" depends="initialization, clear" > 
+			<delete includeemptydirs="true" quiet="true">
+	            <fileset dir="${report.dest}" includes="**/*"/>
+			</delete>
+	        <echo message="Creating directory..."/>
+			<mkdir dir="${report.dest}"/>
+	        <echo message="Suite class path Is ------: ${suite.classpath}"/>
+	        <echo message="compiling..."/>
+	        <javac 
+	            debug="true" 
+	            destdir="${report.dest}" 
+	            srcdir="${report.src}" 
+	            target="1.8" 
+	            classpath="${suite.classpath}"
+	        >
+	        </javac>
+	    	 <copy todir="${report.dest}">
+	    	            <fileset dir="${report.src}" excludes="**/*.java"/>
+	    	  </copy>
+	      </target>
+
+
+    <!-- build -->
+    <target name="build" depends="initialization">
+    </target>
+
+    <!-- run -->
+    <target name="run" depends="compile">
+        <testng classpath="${suite.classpath}:${report.dest}" suitename="suite1">	
+            <xmlfileset dir="${project.home}" includes="testng.xml"/>
+        </testng>       
+    </target>	
+
+    <target name="usage">
+        <echo>
+            ant run will execute the test
+        </echo>
+    </target>
+	
+
+	<path id="test.c">
+	        <fileset dir="${project.jars}" includes="*.jar"/>
+
+	</path>
+	
+	  <target name="reports">
+	        <mkdir dir="${project.home}/XSLT_Reports/Reports"/>
+	  	<!-- Set testng-results.xsl File's Path. -->
+	        <xslt in="${report.result}/testng-results.xml" style="src/com/Xslt/testng-results.xsl"
+	              out="${project.home}/XSLT_Reports/Reports/index.html" classpathref="test.c" processor="SaxonLiaison">
+	            <param name="testNgXslt.outputDir" expression="${project.home}/XSLT_Reports/Reports/"/>
+	            <param name="testNgXslt.showRuntimeTotals" expression="true"/>
+	        </xslt>
+	    </target>
+	
+		<target name="pdf">
+				<delete file="${pdfreport}"/>
+			   <exec executable="wkhtmltopdf">
+			      <arg value="${project.home}/XSLT_Reports/Reports/overview.html"/>
+			      <arg value="${pdfreport}"/>
+			   </exec>
+		</target>
+	
+		<target name="mail">
+			<mail mailhost="smtp.gmail.com" mailport="587" subject="Test build complete" messagemimetype="text/html"
+				enableStartTLS="true" 
+				user="cuuseremail@gmail.com" 
+				password="Testuser7!">
+			  <replyto address="cuuseremail@gmail.com"/>
+			  <from address="cuuseremail@gmail.com"/>
+			  <to address="nihuchowdary@gmail.com"/>
+			  <message>The ${ant.project.name} nightly build is complete. Please view the attached sheets for summary of results.</message>
+			  <attachments>
+				<fileset dir="${project.home}/src/com/stta/ExcelFiles">
+					<include name="*.xls"/>
+				</fileset>
+			  	<fileset dir="${project.home}">
+			  		<include name="${pdfreport}"/>
+			  	</fileset>
+			  </attachments>
+			</mail>	
+		</target>
+
+</project>
